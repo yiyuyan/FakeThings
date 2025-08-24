@@ -1,0 +1,26 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "cn.ksmcbrigade.ft.mixin",
+  "compatibilityLevel": "JAVA_8",
+  "refmap": "ft.refmap.json",
+  "mixins": [
+    "PlayerMixin",
+    "item.ItemMixin",
+    "item.ItemStackMixin"
+  ],
+  "client": [
+    "client.block.BlockModelShaperMixin",
+    "client.item.HumanoidArmorLayerMixin",
+    "client.item.ItemColorsMixin",
+    "client.item.ItemModelShaperMixin",
+    "client.item.ItemRendererMixin",
+    "client.signs.CustomHeadRendererMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "overwrites": {
+    "requireAnnotations": true
+  }
+}
