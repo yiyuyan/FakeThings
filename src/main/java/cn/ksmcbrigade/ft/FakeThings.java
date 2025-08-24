@@ -34,6 +34,7 @@ import net.minecraftforge.event.BuildCreativeModeTabContentsEvent;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.entity.living.LivingDestroyBlockEvent;
 import net.minecraftforge.event.entity.living.LivingUseTotemEvent;
+import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.level.LevelEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -137,8 +138,14 @@ public class FakeThings {
 
     @SubscribeEvent
     public void unload(LevelEvent.Unload levelEvent){
-        FTClient.fakeBlocks.forEach((b,block)->levelEvent.getLevel().setBlock(b, Blocks.AIR.defaultBlockState(),11));
+        FTTemp.fakeBlocks.forEach((b, block)->levelEvent.getLevel().setBlock(b, Blocks.AIR.defaultBlockState(),11));
         CHANNEL.send(PacketDistributor.ALL.noArg(),new ClearFakeBlockPacketMsg());
+    }
+
+    @SubscribeEvent
+    public void onPlayerJoin(PlayerEvent.PlayerLoggedInEvent event){
+        if(!(event.getEntity() instanceof ServerPlayer)) return;
+        FTTemp.fakeBlocks.forEach((b,block)->CHANNEL.send(PacketDistributor.PLAYER.with(()-> (ServerPlayer) event.getEntity()),new AddFakeBlockPacketMsg(b,block,false)));
     }
 
     @SubscribeEvent

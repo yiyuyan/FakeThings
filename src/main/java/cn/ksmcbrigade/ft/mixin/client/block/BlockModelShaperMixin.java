@@ -1,6 +1,6 @@
 package cn.ksmcbrigade.ft.mixin.client.block;
 
-import cn.ksmcbrigade.ft.FTClient;
+import cn.ksmcbrigade.ft.FTTemp;
 import cn.ksmcbrigade.ft.FakeThings;
 import cn.ksmcbrigade.ft.block.FakeBlock;
 import cn.ksmcbrigade.ft.entity.FakeBlockEntity;
@@ -45,7 +45,7 @@ public abstract class BlockModelShaperMixin {
             fakethings$fakeBlock = fakeBlockEntity.block;
         }
         else{
-            fakethings$fakeBlock = FTClient.fakeBlocks.getOrDefault(p_234357_, null);
+            fakethings$fakeBlock = FTTemp.fakeBlocks.getOrDefault(p_234357_, null);
             if(p_234356_.getBlock() instanceof FakeBlock && fakethings$fakeBlock==null) fakethings$fakeBlock = FakeThings.FAKE_BLOCK.get();
         }
     }
