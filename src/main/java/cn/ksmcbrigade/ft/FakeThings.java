@@ -143,7 +143,7 @@ public class FakeThings {
 
     @SubscribeEvent
     public void registerCommand(RegisterCommandsEvent event){
-        event.getDispatcher().register(Commands.literal("summon-fake").then(Commands.argument("item", ItemArgument.item(event.getBuildContext())).executes(context -> {
+        event.getDispatcher().register(Commands.literal("give-fake").then(Commands.argument("item", ItemArgument.item(event.getBuildContext())).executes(context -> {
             return command(context,Collections.emptyList(),1,0);
         }).then(Commands.argument("count", IntegerArgumentType.integer(1)).executes(context -> {
             return command(context,Collections.emptyList(),IntegerArgumentType.getInteger(context,"count"),0);

@@ -2,8 +2,6 @@ package cn.ksmcbrigade.ft.items;
 
 import cn.ksmcbrigade.ft.FakeThings;
 import cn.ksmcbrigade.ft.interfaces.IBlockItem;
-import net.minecraft.client.renderer.entity.ArmorStandRenderer;
-import net.minecraft.client.renderer.entity.player.PlayerRenderer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.nbt.CompoundTag;
