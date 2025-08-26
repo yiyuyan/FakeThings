@@ -11,6 +11,8 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.network.NetworkEvent;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.function.Supplier;
 
 public record ClearFakeBlockPacketMsg() {
@@ -24,6 +26,10 @@ public record ClearFakeBlockPacketMsg() {
     public static void handle(ClearFakeBlockPacketMsg msg, Supplier<NetworkEvent.Context> ctx) {
         ctx.get().enqueueWork(() -> DistExecutor.unsafeRunWhenOn(Dist.CLIENT,()->()-> FTTemp.fakeBlocks.clear()));
         FTTemp.fakeBlocks.clear();
+       /* StringWriter writer = new StringWriter();
+        PrintWriter printWriter = new PrintWriter(writer);
+        new Exception("ee").printStackTrace(printWriter);
+        System.out.println(writer);*/
         ctx.get().setPacketHandled(true);
     }
 }

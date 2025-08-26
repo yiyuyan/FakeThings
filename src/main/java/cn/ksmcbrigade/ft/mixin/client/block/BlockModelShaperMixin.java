@@ -25,6 +25,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.util.HashMap;
+
 /**
  * &#064;Author: KSmc_brigade
  * &#064;Date: 2025/8/23 下午8:22
@@ -44,8 +46,12 @@ public abstract class BlockModelShaperMixin {
         if(p_234358_.getBlockEntity(p_234357_) instanceof FakeBlockEntity fakeBlockEntity){
             fakethings$fakeBlock = fakeBlockEntity.block;
         }
-        else{
-            fakethings$fakeBlock = FTTemp.fakeBlocks.getOrDefault(p_234357_, null);
+        else if(Minecraft.getInstance().level!=null){
+            if(!FTTemp.fakeBlocks.containsKey(Minecraft.getInstance().level.dimension())){
+                FTTemp.fakeBlocks.put(Minecraft.getInstance().level.dimension(),new HashMap<>());
+                //System.out.println("1111111111111111111111111");
+            }
+            fakethings$fakeBlock = FTTemp.fakeBlocks.get(Minecraft.getInstance().level.dimension()).getOrDefault(p_234357_, null);
             if(p_234356_.getBlock() instanceof FakeBlock && fakethings$fakeBlock==null) fakethings$fakeBlock = FakeThings.FAKE_BLOCK.get();
         }
     }

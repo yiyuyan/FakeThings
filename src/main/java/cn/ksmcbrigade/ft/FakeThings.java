@@ -5,6 +5,7 @@ import cn.ksmcbrigade.ft.entity.FakeBlockEntity;
 import cn.ksmcbrigade.ft.items.FakeItem;
 import cn.ksmcbrigade.ft.items.FakeTechItem;
 import cn.ksmcbrigade.ft.network.AddFakeBlockPacketMsg;
+import cn.ksmcbrigade.ft.network.CAddFakeBlockPacketMsg;
 import cn.ksmcbrigade.ft.network.ClearFakeBlockPacketMsg;
 import cn.ksmcbrigade.ft.types.FakeBlockEntityType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -16,8 +17,10 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.commands.arguments.item.ItemArgument;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.datafix.fixes.References;
@@ -25,17 +28,21 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.*;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.MapColor;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.BuildCreativeModeTabContentsEvent;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.entity.living.LivingDestroyBlockEvent;
 import net.minecraftforge.event.entity.living.LivingUseTotemEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
-import net.minecraftforge.event.level.LevelEvent;
+import net.minecraftforge.event.entity.player.PlayerInteractEvent;
+import net.minecraftforge.event.level.BlockEvent;
+import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -105,6 +112,7 @@ public class FakeThings {
 
         CHANNEL.registerMessage(0, AddFakeBlockPacketMsg.class,AddFakeBlockPacketMsg::encode,AddFakeBlockPacketMsg::decode,AddFakeBlockPacketMsg::handle);
         CHANNEL.registerMessage(1, ClearFakeBlockPacketMsg.class,ClearFakeBlockPacketMsg::encode,ClearFakeBlockPacketMsg::decode,ClearFakeBlockPacketMsg::handle);
+        CHANNEL.registerMessage(2, CAddFakeBlockPacketMsg.class,CAddFakeBlockPacketMsg::encode,CAddFakeBlockPacketMsg::decode,CAddFakeBlockPacketMsg::handle);
 
         // Register ourselves for server and other game events we are interested in
         MinecraftForge.EVENT_BUS.register(this);
@@ -118,7 +126,37 @@ public class FakeThings {
     @SubscribeEvent
     public void onMine(LivingDestroyBlockEvent event){
         if(!event.isCanceled() && event.getState().getBlock() instanceof FakeBlock){
-            CHANNEL.send(PacketDistributor.ALL.noArg(),new AddFakeBlockPacketMsg(event.getPos(),event.getState().getBlock(),true));
+            LOGGER.info("Removing a fake block...");
+            CHANNEL.send(PacketDistributor.ALL.noArg(),AddFakeBlockPacketMsg.create(event.getEntity().level(),event.getPos(),event.getState().getBlock(),true));
+        }
+    }
+
+    @SubscribeEvent
+    @OnlyIn(Dist.DEDICATED_SERVER)
+    public void onPlace(PlayerInteractEvent.RightClickBlock event){
+        if(event.getLevel().getBlockEntity(event.getPos()) instanceof FakeBlockEntity entity){
+            ItemStack INSTANCE = event.getEntity().getItemInHand(event.getHand());
+            if(INSTANCE.getItem() instanceof FakeItem fakeItem){
+                ItemStack i = fakeItem.getItemStack(INSTANCE,0);
+                if(i.getItem() instanceof BlockItem blockItem){
+                    entity.setBlock(blockItem.getBlock());
+                    if(!event.getLevel().isClientSide){
+                        FakeThings.CHANNEL.send(PacketDistributor.ALL.noArg(), AddFakeBlockPacketMsg.create(event.getLevel(),event.getPos(),blockItem.getBlock(),false));
+                    }
+                }
+            }
+        }
+    }
+
+    @SubscribeEvent
+    @OnlyIn(Dist.DEDICATED_SERVER)
+    public void onDestroy(PlayerInteractEvent.LeftClickBlock event){
+        Block block = event.getLevel().getBlockState(event.getPos()).getBlock();
+        if(block instanceof FakeBlock){
+            if(!event.getLevel().isClientSide){
+                FakeThings.CHANNEL.send(PacketDistributor.ALL.noArg(), AddFakeBlockPacketMsg.create(event.getLevel(),event.getPos(),block,true));
+                event.getLevel().removeBlock(event.getPos(),false);
+            }
         }
     }
 
@@ -126,26 +164,41 @@ public class FakeThings {
     public void onMine(LivingUseTotemEvent event){
         if(event.getEntity() instanceof Player player){
             if(player.getItemInHand(player.getUsedItemHand()).getItem() instanceof FakeItem){
+                LOGGER.info("Canceled the player using totem with fake item(s).");
                 event.setCanceled(true);
             }
         }
     }
 
-    @SubscribeEvent
-    public void load(LevelEvent.Load levelEvent){
-        CHANNEL.send(PacketDistributor.ALL.noArg(),new ClearFakeBlockPacketMsg());
-    }
 
     @SubscribeEvent
-    public void unload(LevelEvent.Unload levelEvent){
-        FTTemp.fakeBlocks.forEach((b, block)->levelEvent.getLevel().setBlock(b, Blocks.AIR.defaultBlockState(),11));
+    public void unload(ServerStoppingEvent levelEvent){
+        LOGGER.info("Sending clear fake block packets...");
         CHANNEL.send(PacketDistributor.ALL.noArg(),new ClearFakeBlockPacketMsg());
     }
 
     @SubscribeEvent
     public void onPlayerJoin(PlayerEvent.PlayerLoggedInEvent event){
         if(!(event.getEntity() instanceof ServerPlayer)) return;
-        FTTemp.fakeBlocks.forEach((b,block)->CHANNEL.send(PacketDistributor.PLAYER.with(()-> (ServerPlayer) event.getEntity()),new AddFakeBlockPacketMsg(b,block,false)));
+        LOGGER.info("Sending add fake block packets...");
+        FTTemp.fakeBlocks.forEach((level,map)-> map.forEach((b, block)-> {
+            CHANNEL.send(PacketDistributor.ALL.noArg(),AddFakeBlockPacketMsg.create(event.getEntity().level(),b,block,false));
+            LOGGER.debug("level {} pos {} block {}",level,b,block);
+        }));
+        for (ResourceKey<Level> levelResourceKey : FTTemp.fakeBlocks.keySet()){
+            HashMap<BlockPos,Block> posBlockHashMap = FTTemp.fakeBlocks.get(levelResourceKey);
+            for (BlockPos pos : posBlockHashMap.keySet()) {
+                CHANNEL.send(PacketDistributor.ALL.noArg(),AddFakeBlockPacketMsg.create(event.getEntity().level(),pos,posBlockHashMap.get(pos),false));
+            }
+        }
+        LOGGER.debug("The fake block hash map is empty: {}",FTTemp.fakeBlocks.isEmpty());
+    }
+
+    @SubscribeEvent
+    public void onPlayerLeave(PlayerEvent.PlayerLoggedOutEvent event){
+        if(!(event.getEntity() instanceof ServerPlayer)) return;
+        LOGGER.info("Sending clear fake block packet...");
+        CHANNEL.send(PacketDistributor.PLAYER.with(()-> (ServerPlayer) event.getEntity()), new ClearFakeBlockPacketMsg());
     }
 
     @SubscribeEvent
